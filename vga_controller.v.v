@@ -51,23 +51,213 @@ module vga_controller (
     // La señal 'de' indica si estamos en el área donde hay píxeles visibles
     assign de = (h_cnt < H_VISIBLE) && (v_cnt < V_VISIBLE);
 
-    // --- GENERADOR DE PATRÓN DE PRUEBA (BARRAS DE COLORES) ---
+    // --- LÓGICA DE DIBUJO (CUADRADO ROJO SOBRE FONDO AZUL) ---
     reg [7:0] red, green, blue;
     
     always @(*) begin
         if (!de) begin
-            // Fuera del área visible, siempre debe enviarse negro
+            // Fuera del área visible (blanking), siempre debe enviarse negro
             red = 8'h00; green = 8'h00; blue = 8'h00;
         end else begin
-            // Divide los 640 píxeles en 8 franjas de 80 píxeles cada una
-            if      (h_cnt < 80)  {red, green, blue} = {8'hFF, 8'h00, 8'h00}; // Blanco
-            else if (h_cnt < 160) {red, green, blue} = {8'hFF, 8'hA5, 8'h00}; // Amarillo
-            else if (h_cnt < 240) {red, green, blue} = {8'hFF, 8'hFF, 8'h00}; // Cian
-            else if (h_cnt < 320) {red, green, blue} = {8'h00, 8'hFF, 8'h00}; // Verde
-            else if (h_cnt < 400) {red, green, blue} = {8'h00, 8'h77, 8'h00}; // Magenta
-            else if (h_cnt < 480) {red, green, blue} = {8'h00, 8'h00, 8'h99}; // Rojo
-            else if (h_cnt < 560) {red, green, blue} = {8'h00, 8'h00, 8'hFE}; // Azul
-            else                  {red, green, blue} = {8'hA0, 8'h20, 8'hF0}; // Negro
+            // Si el píxel actual está dentro de los límites del cuadrado
+            //Serpiente
+            if (h_cnt >= 256 && h_cnt < 320 && v_cnt >= 96 && v_cnt < 336) begin
+                {red, green, blue} = {8'h7D, 8'hB5, 8'hFA}; // Azul cielo
+            end
+            //Ojos
+            else if (h_cnt >= 364 && h_cnt < 374 && v_cnt >= 106 && v_cnt < 116) begin
+                {red, green, blue} = {8'h00, 8'h00, 8'h00}; // Negro
+            end
+            else if (h_cnt >= 364 && h_cnt < 374 && v_cnt >= 124 && v_cnt < 134) begin
+                {red, green, blue} = {8'h00, 8'h00, 8'h00}; // Negro
+            end
+            //Cabeza
+            else if (h_cnt >= 320 && h_cnt < 384 && v_cnt >= 96 && v_cnt < 144) begin
+                {red, green, blue} = {8'h7D, 8'hB5, 8'hFA}; // Azul cielo
+            end
+            //Manzana buena
+            else if (h_cnt >= 394 && h_cnt < 438 && v_cnt >= 154 && v_cnt < 182) begin
+                {red, green, blue} = {8'hFF, 8'hFF, 8'h00}; // Amarillo
+            end
+            //Manzana envenenada
+            else if (h_cnt >= 138 && h_cnt < 182 && v_cnt >= 346 && v_cnt < 374) begin
+                {red, green, blue} = {8'hFF, 8'h00, 8'h00}; // Rojo
+            end
+            
+
+            //Primer Columna
+            else if (h_cnt >= 0 && h_cnt < 64 && v_cnt >= 0 && v_cnt < 48) begin
+                {red, green, blue} = {8'h00, 8'h80, 8'h00}; // Verde oscuro
+            end
+            else if (h_cnt >= 0 && h_cnt < 64 && v_cnt >= 96 && v_cnt < 144) begin
+                {red, green, blue} = {8'h00, 8'h80, 8'h00}; // Verde oscuro
+            end
+            else if (h_cnt >= 0 && h_cnt < 64 && v_cnt >= 192 && v_cnt < 240) begin
+                {red, green, blue} = {8'h00, 8'h80, 8'h00}; // Verde oscuro
+            end
+            else if (h_cnt >= 0 && h_cnt < 64 && v_cnt >= 288 && v_cnt < 336) begin
+                {red, green, blue} = {8'h00, 8'h80, 8'h00}; // Verde oscuro
+            end
+            else if (h_cnt >= 0 && h_cnt < 64 && v_cnt >= 384 && v_cnt < 432) begin
+                {red, green, blue} = {8'h00, 8'h80, 8'h00}; // Verde oscuro
+            end
+
+            // Segunda Columna
+            else if (h_cnt >= 64 && h_cnt < 128 && v_cnt >= 48 && v_cnt < 96) begin
+                {red, green, blue} = {8'h00, 8'h80, 8'h00}; // Verde oscuro
+            end
+            else if (h_cnt >= 64 && h_cnt < 128 && v_cnt >= 144 && v_cnt < 192) begin
+                {red, green, blue} = {8'h00, 8'h80, 8'h00}; // Verde oscuro
+            end
+            else if (h_cnt >= 64 && h_cnt < 128 && v_cnt >= 240 && v_cnt < 288) begin
+                {red, green, blue} = {8'h00, 8'h80, 8'h00}; // Verde oscuro
+            end
+            else if (h_cnt >= 64 && h_cnt < 128 && v_cnt >= 336 && v_cnt < 384) begin
+                {red, green, blue} = {8'h00, 8'h80, 8'h00}; // Verde oscuro
+            end
+            else if (h_cnt >= 64 && h_cnt < 128 && v_cnt >= 432 && v_cnt < 480) begin
+                {red, green, blue} = {8'h00, 8'h80, 8'h00}; // Verde oscuro
+            end
+
+            // Tercera Columna
+            else if (h_cnt >= 128 && h_cnt < 192 && v_cnt >= 0 && v_cnt < 48) begin
+                {red, green, blue} = {8'h00, 8'h80, 8'h00}; // Verde oscuro
+            end
+            else if (h_cnt >= 128 && h_cnt < 192 && v_cnt >= 96 && v_cnt < 144) begin
+                {red, green, blue} = {8'h00, 8'h80, 8'h00}; // Verde oscuro
+            end 
+            else if (h_cnt >= 128 && h_cnt < 192 && v_cnt >= 192 && v_cnt < 240) begin
+                {red, green, blue} = {8'h00, 8'h80, 8'h00}; // Verde oscuro
+            end 
+            else if (h_cnt >= 128 && h_cnt < 192 && v_cnt >= 288 && v_cnt < 336) begin
+                {red, green, blue} = {8'h00, 8'h80, 8'h00}; // Verde oscuro
+            end
+            else if (h_cnt >= 128 && h_cnt < 192 && v_cnt >= 384 && v_cnt < 432) begin
+                {red, green, blue} = {8'h00, 8'h80, 8'h00}; // Verde oscuro
+            end
+
+            //Cuarta Columna
+            else if (h_cnt >= 192 && h_cnt < 256 && v_cnt >= 48 && v_cnt < 96) begin
+                {red, green, blue} = {8'h00, 8'h80, 8'h00}; // Verde oscuro
+            end
+            else if (h_cnt >= 192 && h_cnt < 256 && v_cnt >= 144 && v_cnt < 192) begin
+                {red, green, blue} = {8'h00, 8'h80, 8'h00}; // Verde oscuro
+            end
+            else if (h_cnt >= 192 && h_cnt < 256 && v_cnt >= 240 && v_cnt < 288) begin
+                {red, green, blue} = {8'h00, 8'h80, 8'h00}; // Verde oscuro
+            end
+            else if (h_cnt >= 192 && h_cnt < 256 && v_cnt >= 336 && v_cnt < 384) begin
+                {red, green, blue} = {8'h00, 8'h80, 8'h00}; // Verde oscuro
+            end
+            else if (h_cnt >= 192 && h_cnt < 256 && v_cnt >= 432 && v_cnt < 480) begin
+                {red, green, blue} = {8'h00, 8'h80, 8'h00}; // Verde oscuro
+            end
+
+            //Quinta Columna
+            else if (h_cnt >= 256 && h_cnt < 320 && v_cnt >= 0 && v_cnt < 48) begin
+                {red, green, blue} = {8'h00, 8'h80, 8'h00}; // Verde oscuro
+            end
+            else if (h_cnt >= 256 && h_cnt < 320 && v_cnt >= 96 && v_cnt < 144) begin
+                {red, green, blue} = {8'h00, 8'h80, 8'h00}; // Verde oscuro
+            end 
+            else if (h_cnt >= 256 && h_cnt < 320 && v_cnt >= 192 && v_cnt < 240) begin
+                {red, green, blue} = {8'h00, 8'h80, 8'h00}; // Verde oscuro
+            end 
+            else if (h_cnt >= 256 && h_cnt < 320 && v_cnt >= 288 && v_cnt < 336) begin
+                {red, green, blue} = {8'h00, 8'h80, 8'h00}; // Verde oscuro
+            end
+            else if (h_cnt >= 256 && h_cnt < 320 && v_cnt >= 384 && v_cnt < 432) begin
+                {red, green, blue} = {8'h00, 8'h80, 8'h00}; // Verde oscuro
+            end
+
+            //Sexta Columna
+            else if (h_cnt >= 320 && h_cnt < 384 && v_cnt >= 48 && v_cnt < 96) begin
+                {red, green, blue} = {8'h00, 8'h80, 8'h00}; // Verde oscuro
+            end
+            else if (h_cnt >= 320 && h_cnt < 384 && v_cnt >= 144 && v_cnt < 192) begin
+                {red, green, blue} = {8'h00, 8'h80, 8'h00}; // Verde oscuro
+            end
+            else if (h_cnt >= 320 && h_cnt < 384 && v_cnt >= 240 && v_cnt < 288) begin
+                {red, green, blue} = {8'h00, 8'h80, 8'h00}; // Verde oscuro
+            end
+            else if (h_cnt >= 320 && h_cnt < 384 && v_cnt >= 336 && v_cnt < 384) begin
+                {red, green, blue} = {8'h00, 8'h80, 8'h00}; // Verde oscuro
+            end
+            else if (h_cnt >= 320 && h_cnt < 384 && v_cnt >= 432 && v_cnt < 480) begin
+                {red, green, blue} = {8'h00, 8'h80, 8'h00}; // Verde oscuro
+            end
+
+            //Septima Columna
+            else if (h_cnt >= 384 && h_cnt < 448 && v_cnt >= 0 && v_cnt < 48) begin
+                {red, green, blue} = {8'h00, 8'h80, 8'h00}; // Verde oscuro
+            end
+            else if (h_cnt >= 384 && h_cnt < 448 && v_cnt >= 96 && v_cnt < 144) begin
+                {red, green, blue} = {8'h00, 8'h80, 8'h00}; // Verde oscuro
+            end 
+            else if (h_cnt >= 384 && h_cnt < 448 && v_cnt >= 192 && v_cnt < 240) begin
+                {red, green, blue} = {8'h00, 8'h80, 8'h00}; // Verde oscuro
+            end 
+            else if (h_cnt >= 384 && h_cnt < 448 && v_cnt >= 288 && v_cnt < 336) begin
+                {red, green, blue} = {8'h00, 8'h80, 8'h00}; // Verde oscuro
+            end
+            else if (h_cnt >= 384 && h_cnt < 448 && v_cnt >= 384 && v_cnt < 432) begin
+                {red, green, blue} = {8'h00, 8'h80, 8'h00}; // Verde oscuro
+            end
+
+            //Octava Columna
+            else if (h_cnt >= 448 && h_cnt < 512 && v_cnt >= 48 && v_cnt < 96) begin
+                {red, green, blue} = {8'h00, 8'h80, 8'h00}; // Verde oscuro
+            end
+            else if (h_cnt >= 448 && h_cnt < 512 && v_cnt >= 144 && v_cnt < 192) begin
+                {red, green, blue} = {8'h00, 8'h80, 8'h00}; // Verde oscuro
+            end
+            else if (h_cnt >= 448 && h_cnt < 512 && v_cnt >= 240 && v_cnt < 288) begin
+                {red, green, blue} = {8'h00, 8'h80, 8'h00}; // Verde oscuro
+            end
+            else if (h_cnt >= 448 && h_cnt < 512 && v_cnt >= 336 && v_cnt < 384) begin
+                {red, green, blue} = {8'h00, 8'h80, 8'h00}; // Verde oscuro
+            end
+            else if (h_cnt >= 448 && h_cnt < 512 && v_cnt >= 432 && v_cnt < 480) begin
+                {red, green, blue} = {8'h00, 8'h80, 8'h00}; // Verde oscuro
+            end
+
+            //Novena columna
+            else if (h_cnt >= 512 && h_cnt < 576 && v_cnt >= 0 && v_cnt < 48) begin
+                {red, green, blue} = {8'h00, 8'h80, 8'h00}; // Verde oscuro
+            end
+            else if (h_cnt >= 512 && h_cnt < 576 && v_cnt >= 96 && v_cnt < 144) begin
+                {red, green, blue} = {8'h00, 8'h80, 8'h00}; // Verde oscuro
+            end 
+            else if (h_cnt >= 512 && h_cnt < 576 && v_cnt >= 192 && v_cnt < 240) begin
+                {red, green, blue} = {8'h00, 8'h80, 8'h00}; // Verde oscuro
+            end 
+            else if (h_cnt >= 512 && h_cnt < 576 && v_cnt >= 288 && v_cnt < 336) begin
+                {red, green, blue} = {8'h00, 8'h80, 8'h00}; // Verde oscuro
+            end
+            else if (h_cnt >= 512 && h_cnt < 576 && v_cnt >= 384 && v_cnt < 432) begin
+                {red, green, blue} = {8'h00, 8'h80, 8'h00}; // Verde oscuro
+            end
+
+            //Decima Columna
+            else if (h_cnt >= 576 && h_cnt < 640 && v_cnt >= 48 && v_cnt < 96) begin
+                {red, green, blue} = {8'h00, 8'h80, 8'h00}; // Verde oscuro
+            end
+            else if (h_cnt >= 576 && h_cnt < 640 && v_cnt >= 144 && v_cnt < 192) begin
+                {red, green, blue} = {8'h00, 8'h80, 8'h00}; // Verde oscuro
+            end
+            else if (h_cnt >= 576 && h_cnt < 640 && v_cnt >= 240 && v_cnt < 288) begin
+                {red, green, blue} = {8'h00, 8'h80, 8'h00}; // Verde oscuro
+            end
+            else if (h_cnt >= 576 && h_cnt < 640 && v_cnt >= 336 && v_cnt < 384) begin
+                {red, green, blue} = {8'h00, 8'h80, 8'h00}; // Verde oscuro
+            end
+            else if (h_cnt >= 576 && h_cnt < 640 && v_cnt >= 432 && v_cnt < 480) begin
+                {red, green, blue} = {8'h00, 8'h80, 8'h00}; // Verde oscuro
+            end
+            
+                else begin
+                {red, green, blue} = {8'h00, 8'hFF, 8'h80}; // verde menta (Fondo)
+            end
         end
     end
 
