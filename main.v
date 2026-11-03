@@ -1,44 +1,78 @@
 module top_module (
-    input  clk_27m,      // Reloj físico de la placa (Pin 52 en la Tang Nano 9K)
-    input  rst_n,        // Botón físico de reset (ej. Pin 3 o 4)
+    input  clk_27m,      // Reloj físico de la placa (Pin 52)
+    input  rst_n,        // Botón físico de reset
+    input  uart_rx_pin,
     
-    // Salidas físicas hacia el puerto HDMI (Las que van en tu .cst)
+    // NUEVO: Entradas físicas para los botones de movimiento
+    input  btn_up,
+    input  btn_down,
+    input  btn_left,
+    input  btn_right,
+    
+    // Salidas físicas hacia el puerto HDMI
     output       O_tmds_clk_p,
     output       O_tmds_clk_n,
     output [2:0] O_tmds_data_p,
     output [2:0] O_tmds_data_n
 );
 
-    // 1. Cables internos para interconectar los bloques
-    wire clk_serial; // Reloj rápido para transmisión (ej. 125 MHz)
-    wire clk_pixel;  // Reloj lento para dibujar píxeles (ej. 25 MHz)
-    wire vs, hs, de; // Sincronización vertical, horizontal y enable
-    wire [7:0] r, g, b; // Canales de color RGB
+    // 1. Cables internos
+    wire [7:0] rx_data;
+    wire rx_valid;
+    wire clk_serial; 
+    wire clk_pixel;  
+    wire vs, hs, de; 
+    wire [7:0] r, g, b; 
+    wire [4:0] head_x, head_y;
+    wire [4:0] body1_x, body1_y, body2_x, body2_y, body3_x, body3_y;
+    
+    // 1. Instancia UART
+    uart_rx uart_inst (
+        .clk(clk_27m),
+        .rst_n(rst_n),
+        .rx(uart_rx_pin), // Deberás agregar input uart_rx_pin en tu top_module
+        .rx_data(rx_data),
+        .rx_valid(rx_valid)
+    );
 
- 
-    // 2. Instancia del rPLL (Genera solo los 125 MHz)
-Gowin_rPLL pll_inst (
-    .clkout(clk_serial), // Salida de alta frecuencia (125 MHz)
-    .clkin(clk_27m)
-);
+    // 2. Instancia de Lógica
+    snake_logic logic_inst (
+        .clk_pixel(clk_pixel),
+        .rst_n(rst_n),
+        .rx_data(rx_data),
+        .rx_valid(rx_valid),
+        .head_x(head_x), .head_y(head_y),
+        .body1_x(body1_x), .body1_y(body1_y),
+        .body2_x(body2_x), .body2_y(body2_y),
+        .body3_x(body3_x), .body3_y(body3_y)
+    );
 
-// 2.5 Divisor de hardware dedicado (Divide 125 MHz entre 5 = 25 MHz)
-CLKDIV u_clkdiv (
-    .RESETN(rst_n),
-    .HCLKIN(clk_serial), // Entran los 125 MHz generados por el PLL
-    .CLKOUT(clk_pixel),  // Salen los 25 MHz para la lógica VGA
-    .CALIB(1'b0)
-);
-defparam u_clkdiv.DIV_MODE = "5"; // <--- Aquí se aplica la división por 5
-defparam u_clkdiv.GSREN = "false";
+    // 2. Instancia del rPLL y Divisor
+    Gowin_rPLL pll_inst (
+        .clkout(clk_serial), 
+        .clkin(clk_27m)
+    );
+
+    CLKDIV u_clkdiv (
+        .RESETN(rst_n),
+        .HCLKIN(clk_serial), 
+        .CLKOUT(clk_pixel),  
+        .CALIB(1'b0)
+    );
+    defparam u_clkdiv.DIV_MODE = "5";
+    defparam u_clkdiv.GSREN = "false";
 
 
-    // 3. Instancia de tu generador de imagen (Controlador VGA)
-    // Toma el reloj de píxel y determina qué color va en qué coordenada.
 
+    // 3. Instancia del Controlador VGA
     vga_controller vga_inst (
         .clk_pixel(clk_pixel),
         .rst_n(rst_n),
+        .head_x(head_x), // NUEVO: Pasamos las coordenadas calculadas al VGA
+        .head_y(head_y), // NUEVO
+        .body1_x(body1_x), .body1_y(body1_y),
+        .body2_x(body2_x), .body2_y(body2_y),
+        .body3_x(body3_x), .body3_y(body3_y),
         .hs(hs),
         .vs(vs),
         .de(de),
@@ -47,21 +81,21 @@ defparam u_clkdiv.GSREN = "false";
         .b(b)
     );
 
-    // 4. Tu código: La instancia del DVI TX
+    // 4. Instancia del DVI TX
     DVI_TX_Top dvi_tx_inst (
         .I_rst_n(rst_n), 
-        .I_serial_clk(clk_serial), // Conectado al wire interno
-        .I_rgb_clk(clk_pixel),     // Conectado al wire interno
-        .I_rgb_vs(vs),             // Conectado al VGA
-        .I_rgb_hs(hs),             // Conectado al VGA
-        .I_rgb_de(de),             // Conectado al VGA
-        .I_rgb_r(r),               // Conectado al VGA
-        .I_rgb_g(g),               // Conectado al VGA
-        .I_rgb_b(b),               // Conectado al VGA
-        .O_tmds_clk_p(O_tmds_clk_p),     // Directo a la salida física
-        .O_tmds_clk_n(O_tmds_clk_n),     // Directo a la salida física
-        .O_tmds_data_p(O_tmds_data_p),   // Directo a la salida física
-        .O_tmds_data_n(O_tmds_data_n)    // Directo a la salida física
+        .I_serial_clk(clk_serial),
+        .I_rgb_clk(clk_pixel),     
+        .I_rgb_vs(vs),             
+        .I_rgb_hs(hs),             
+        .I_rgb_de(de),             
+        .I_rgb_r(r),               
+        .I_rgb_g(g),               
+        .I_rgb_b(b),               
+        .O_tmds_clk_p(O_tmds_clk_p),     
+        .O_tmds_clk_n(O_tmds_clk_n),     
+        .O_tmds_data_p(O_tmds_data_p),   
+        .O_tmds_data_n(O_tmds_data_n)    
     );
 
 endmodule
