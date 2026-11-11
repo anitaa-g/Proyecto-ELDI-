@@ -1,57 +1,18 @@
 module top_module (
-    input  clk_27m,      // Reloj físico de la placa (Pin 52)
-    input  rst_n,        // Botón físico de reset
-    input  uart_rx_pin,
+    input  clk_27m,      
+    input  rst_n,        
+    input  uart_rx_pin,  
     
-    // NUEVO: Entradas físicas para los botones de movimiento
-    input  btn_up,
-    input  btn_down,
-    input  btn_left,
-    input  btn_right,
-    
-    // Salidas físicas hacia el puerto HDMI
     output       O_tmds_clk_p,
     output       O_tmds_clk_n,
     output [2:0] O_tmds_data_p,
     output [2:0] O_tmds_data_n
 );
 
-    // 1. Cables internos
-    wire [7:0] rx_data;
-    wire rx_valid;
-    wire clk_serial; 
-    wire clk_pixel;  
-    wire vs, hs, de; 
-    wire [7:0] r, g, b; 
-    wire [4:0] head_x, head_y;
-    wire [4:0] body1_x, body1_y, body2_x, body2_y, body3_x, body3_y;
-    
-    // 1. Instancia UART
-    uart_rx uart_inst (
-        .clk(clk_27m),
-        .rst_n(rst_n),
-        .rx(uart_rx_pin), // Deberás agregar input uart_rx_pin en tu top_module
-        .rx_data(rx_data),
-        .rx_valid(rx_valid)
-    );
+    wire clk_serial; wire clk_pixel;  
+    wire vs, hs, de; wire [7:0] r, g, b; 
 
-    // 2. Instancia de Lógica
-    snake_logic logic_inst (
-        .clk_pixel(clk_pixel),
-        .rst_n(rst_n),
-        .rx_data(rx_data),
-        .rx_valid(rx_valid),
-        .head_x(head_x), .head_y(head_y),
-        .body1_x(body1_x), .body1_y(body1_y),
-        .body2_x(body2_x), .body2_y(body2_y),
-        .body3_x(body3_x), .body3_y(body3_y)
-    );
-
-    // 2. Instancia del rPLL y Divisor
-    Gowin_rPLL pll_inst (
-        .clkout(clk_serial), 
-        .clkin(clk_27m)
-    );
+    Gowin_rPLL pll_inst (.clkout(clk_serial), .clkin(clk_27m));
 
     CLKDIV u_clkdiv (
         .RESETN(rst_n),
@@ -62,26 +23,59 @@ module top_module (
     defparam u_clkdiv.DIV_MODE = "5";
     defparam u_clkdiv.GSREN = "false";
 
+    wire [7:0] rx_data; wire rx_valid;
+    
+    uart_rx uart_inst (
+        .clk(clk_27m),
+        .rst_n(rst_n),
+        .rx(uart_rx_pin),
+        .rx_data(rx_data),
+        .rx_valid(rx_valid)
+    );
 
+    wire [4:0] head_x, head_y;
+    wire [4:0] apple_good_x, apple_good_y;
+    wire [4:0] apple_bad_x, apple_bad_y;
+    wire [3:0] snake_length;
+    
+    wire [49:0] body_x_flat;
+    wire [49:0] body_y_flat;
+    wire game_over;
+    wire game_win;
 
-    // 3. Instancia del Controlador VGA
+    snake_logic logic_inst (
+        .clk_pixel(clk_pixel),
+        .rst_n(rst_n),
+        .rx_data(rx_data),
+        .rx_valid(rx_valid),
+        .head_x(head_x), .head_y(head_y),
+        .apple_good_x(apple_good_x), .apple_good_y(apple_good_y),
+        .apple_bad_x(apple_bad_x), .apple_bad_y(apple_bad_y),
+        .snake_length(snake_length),
+        
+        .body_x_flat(body_x_flat), 
+        .body_y_flat(body_y_flat),
+        .game_over(game_over),
+        .game_win(game_win)
+    );
+
     vga_controller vga_inst (
         .clk_pixel(clk_pixel),
         .rst_n(rst_n),
-        .head_x(head_x), // NUEVO: Pasamos las coordenadas calculadas al VGA
-        .head_y(head_y), // NUEVO
-        .body1_x(body1_x), .body1_y(body1_y),
-        .body2_x(body2_x), .body2_y(body2_y),
-        .body3_x(body3_x), .body3_y(body3_y),
-        .hs(hs),
-        .vs(vs),
-        .de(de),
-        .r(r),
-        .g(g),
-        .b(b)
+        .head_x(head_x), .head_y(head_y),
+        .apple_good_x(apple_good_x), .apple_good_y(apple_good_y),
+        .apple_bad_x(apple_bad_x), .apple_bad_y(apple_bad_y),
+        .snake_length(snake_length),
+        
+        .body_x_flat(body_x_flat), 
+        .body_y_flat(body_y_flat),
+        .game_over(game_over),
+        .game_win(game_win),
+        
+        .hs(hs), .vs(vs), .de(de),
+        .r(r), .g(g), .b(b)
     );
 
-    // 4. Instancia del DVI TX
     DVI_TX_Top dvi_tx_inst (
         .I_rst_n(rst_n), 
         .I_serial_clk(clk_serial),
