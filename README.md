@@ -1,20 +1,29 @@
-# Generador de Video HDMI/DVI con Tang Nano 9K
+# Juego de Snake en Hardware (HDMI) con Tang Nano 9K
 
-Este proyecto documenta e implementa la lógica necesaria para generar una salida de video HDMI desde una FPGA Tang Nano 9K utilizando Gowin EDA. El diseño se basa en un módulo principal (Top Module) que interconecta IP Cores nativos de Gowin con un controlador VGA personalizado.
+Este proyecto documenta e implementa un juego de "Snake" completamente diseñado en hardware (Verilog) sobre una FPGA Tang Nano 9K utilizando Gowin EDA. El sistema genera una salida de video HDMI nativa, lee comandos desde el PC por puerto serial (USB) y ejecuta toda la lógica de colisiones y renderizado en tiempo real sin el uso de un microprocesador.
 
 ## Arquitectura y Funcionamiento
 
-El flujo de video se construye a partir de los siguientes bloques fundamentales:
+El diseño sigue un enfoque modular, separando la lógica del juego (Modelo), la interfaz visual (Vista) y la captura de entradas (Controlador). El flujo se construye a partir de los siguientes bloques fundamentales:
 
-* **Top Module (`top.v`):** Es el archivo principal del proyecto. Actúa como el contenedor que enlaza todas las señales internas, conectando los generadores de reloj, el controlador de imagen y el transmisor hacia los pines físicos de la FPGA. Se construyó utilizando las plantillas de instanciación proporcionadas por el IP Core Generator de Gowin.
+### 1. Interfaz de Video y Relojes
+- **Top Module (`top_module.v`):** Es el archivo principal del proyecto. Actúa como el panel de conexiones maestro que enlaza los generadores de reloj, la recepción UART, el cerebro del juego y el renderizador de video, ruteando las señales hacia los pines físicos de la FPGA.
+- **Gestión de Relojes (rPLL y CLKDIV):** Para adaptarse a los tiempos exactos del estándar de video, se parte del oscilador interno (27 MHz):
+  1. Un **rPLL** multiplica la entrada para generar un reloj serial de alta velocidad (125 MHz).
+  2. Un **CLKDIV** toma esos 125 MHz y los divide entre 5 para obtener el reloj de píxel (25 MHz) necesario para la resolución de 640x480@60Hz.
+- **Transmisor DVI (`DVI_TX_Top`):** IP Core nativo configurado en modo **ELVDS**. Toma las señales de sincronización y los colores de 8 bits y los codifica físicamente hacia el puerto HDMI integrado de la placa.
 
-* **Gestión de Relojes (rPLL y CLKDIV):**
-  Para adaptarse a los tiempos exactos que requiere un monitor, se parte del oscilador interno de la Tang Nano (27 MHz):
-  1. Un **rPLL** multiplica esta frecuencia de entrada para generar un reloj serial de alta velocidad (125 MHz).
-  2. Un divisor de hardware (**CLKDIV**) toma esos 125 MHz y los divide exactamente entre 5 para obtener el reloj de píxel (25 MHz) necesario para la resolución base.
+### 2. Controlador de Entradas (UART)
+- **Receptor Serial (`uart_rx.v`):** Implementa comunicación asíncrona a 115200 baudios leyendo directamente el pin RX (Pin 18) del puente USB-Serial integrado en la placa. Permite al usuario controlar la serpiente enviando los caracteres ASCII `w`, `a`, `s`, `d` desde una terminal serial en el PC (ej. PuTTY) sin necesidad de componentes externos.
 
-* **Controlador VGA (`vga_controller.v`):**
-  Es el módulo encargado de gestionar el barrido de la pantalla. Genera los pulsos de sincronización (horizontal y vertical) y la señal de habilitación de datos (`de`). Además, define el patrón visual en pantalla mediante el sistema RGB. Cada canal de color (Red, Green, Blue) utiliza 8 bits de profundidad, asignando intensidades a través de valores hexadecimales de dos dígitos (por ejemplo, `8'hFF` para el valor máximo).
+### 3. Lógica del Juego (El Cerebro)
+- **Snake Logic (`snake_logic.v`):** Máquina de estados finitos que calcula el comportamiento del juego en una cuadrícula virtual de 20x20. Sus características principales incluyen:
+  - **Memoria expansible:** Utiliza un arreglo de registros que se desplaza en cascada para guardar las coordenadas del cuerpo. Los datos se envían a la capa de video mediante un vector aplanado (Flattened Vector) para optimizar el ruteo interno.
+  - **Aleatoriedad por Hardware:** Utiliza un contador continuo corriendo a la velocidad del reloj de 25 MHz como "semilla" para ubicar las manzanas en coordenadas pseudo-aleatorias en el instante exacto en que ocurre una colisión.
+  - **Reglas y Colisiones:** 
+    - **Manzanas Amarillas:** Hacen crecer el cuerpo.
+    - **Manzanas Rojas (Veneno):** Reducen el tamaño del cuerpo. Si el tamaño es 0, causan la muerte.
+    - **Win/Loss:** El juego se detiene con victoria si la serpiente alcanza el tamaño máximo (10 segmentos). Se detiene con derrota (Game Over) si la cabeza colisiona con cualquier segmento activo de su propio cuerpo.
 
-* **Transmisor DVI (`DVI_TX_Top`):**
-  Generado mediante el IP Core de multimedia de Gowin. Toma las señales de sincronización y los colores de 8 bits del controlador VGA y los codifica. Se configuró específicamente con el estándar de I/O en modo **ELVDS** (Emulated LVDS) para garantizar la compatibilidad física y el correcto ruteo hacia el puerto HDMI integrado en la placa.
+### 4. Renderizado Visual (La Vista)
+- **Controlador VGA (`vga_controller.v`):** Genera los pulsos de sincronización (HS, VS) y escanea masivamente el arreglo del cuerpo para dibujar el juego en tiempo real. Renderiza el fondo cuadriculado, asigna colores distintos a la cabeza y al cuerpo dinámico, y superpone recuadros geométricos de alerta (Rojo para Game Over, Dorado para Victoria) cuando el cerebro del juego activa las banderas correspondientes.
