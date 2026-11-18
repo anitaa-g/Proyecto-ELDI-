@@ -36,12 +36,13 @@ module top_module (
     wire [4:0] head_x, head_y;
     wire [4:0] apple_good_x, apple_good_y;
     wire [4:0] apple_bad_x, apple_bad_y;
-    wire [3:0] snake_length;
+    wire [6:0] snake_length;
     
-    wire [49:0] body_x_flat;
-    wire [49:0] body_y_flat;
+    wire [499:0] body_x_flat;
+    wire [499:0] body_y_flat;
     wire game_over;
     wire game_win;
+    wire [15:0] score;
 
     snake_logic logic_inst (
         .clk_pixel(clk_pixel),
@@ -55,6 +56,7 @@ module top_module (
         
         .body_x_flat(body_x_flat), 
         .body_y_flat(body_y_flat),
+        .score(score),
         .game_over(game_over),
         .game_win(game_win)
     );
@@ -69,6 +71,7 @@ module top_module (
         
         .body_x_flat(body_x_flat), 
         .body_y_flat(body_y_flat),
+        .score(score),
         .game_over(game_over),
         .game_win(game_win),
         
