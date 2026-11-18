@@ -10,15 +10,17 @@ module snake_logic (
     output reg [4:0] apple_good_x, output reg [4:0] apple_good_y,
     output reg [4:0] apple_bad_x,  output reg [4:0] apple_bad_y,
 
-    output reg [3:0] snake_length, 
+    output reg [6:0] snake_length, 
 
-    output wire [49:0] body_x_flat, 
-    output wire [49:0] body_y_flat, 
+    output wire [499:0] body_x_flat, 
+    output wire [499:0] body_y_flat, 
+
+    output reg [15:0] score, // AHORA DE 16 BITS (Miles, Centenas, Decenas, Unidades)
 
     output reg game_over,
     output reg game_win
 );
-    parameter MAX_LENGTH = 10; 
+    parameter MAX_LENGTH = 100; 
 
     reg [4:0] body_x [0:MAX_LENGTH-1];
     reg [4:0] body_y [0:MAX_LENGTH-1];
@@ -30,20 +32,20 @@ module snake_logic (
             assign body_y_flat[j*5 +: 5] = body_y[j];
         end
     endgenerate
-
-    reg [22:0] tick_cnt = 0;
+    
+    reg [22:0] tick_cnt = 0; 
     wire move_tick = (tick_cnt == 23'd6_250_000); 
 
-    always @(posedge clk_pixel or negedge rst_n) begin
-        if (!rst_n) tick_cnt <= 0;
-        else if (move_tick) tick_cnt <= 0;
+    always @(posedge clk_pixel or negedge rst_n) begin 
+        if (!rst_n) tick_cnt <= 0; 
+        else if (move_tick) tick_cnt <= 0; 
         else tick_cnt <= tick_cnt + 1;
     end
-
+    
     reg [4:0] rand_x = 0; reg [4:0] rand_y = 0;
     always @(posedge clk_pixel) begin
-        if (rand_x == 19) begin
-            rand_x <= 0; rand_y <= (rand_y == 19) ? 0 : rand_y + 1;
+        if (rand_x == 9) begin
+            rand_x <= 0; rand_y <= (rand_y == 9) ? 0 : rand_y + 1;
         end else rand_x <= rand_x + 1;
     end
 
@@ -55,9 +57,9 @@ module snake_logic (
         if (!rst_n) begin
             dir_state <= RIGHT;
         end else if (rx_valid) begin
-            if (rx_data == 8'h77 && actual_dir != DOWN)       dir_state <= UP;
-            else if (rx_data == 8'h73 && actual_dir != UP)    dir_state <= DOWN;
-            else if (rx_data == 8'h61 && actual_dir != RIGHT) dir_state <= LEFT;
+            if (rx_data == 8'h77 && actual_dir != DOWN)       dir_state <= UP; 
+            else if (rx_data == 8'h73 && actual_dir != UP)    dir_state <= DOWN; 
+            else if (rx_data == 8'h61 && actual_dir != RIGHT) dir_state <= LEFT; 
             else if (rx_data == 8'h64 && actual_dir != LEFT)  dir_state <= RIGHT;
         end
     end
@@ -81,10 +83,12 @@ module snake_logic (
         if (!rst_n) begin
             head_x <= 5; head_y <= 2;
             snake_length <= 3; 
-            apple_good_x <= 10; apple_good_y <= 10;
-            apple_bad_x <= 15;  apple_bad_y <= 15;
-            game_over <= 0;
-            game_win <= 0;
+            score <= 16'h0000; // Reinicia en 0000
+            
+            apple_good_x <= 7; apple_good_y <= 7;
+            apple_bad_x <= 3;  apple_bad_y <= 8;
+            
+            game_over <= 0; game_win <= 0;
             actual_dir <= RIGHT; 
             
             for (i = 0; i < MAX_LENGTH; i = i + 1) begin
@@ -112,27 +116,60 @@ module snake_logic (
 
                     if (eat_good) begin
                         apple_good_x <= rand_x; apple_good_y <= rand_y;
+                        
+                        // LÓGICA BCD: Sumar 10 (Sube decenas y acarrea a centenas y miles)
+                        if (score[7:4] == 4'd9) begin
+                            score[7:4] <= 4'd0;
+                            if (score[11:8] == 4'd9) begin
+                                score[11:8] <= 4'd0;
+                                if (score[15:12] < 4'd9) score[15:12] <= score[15:12] + 1'b1; // Sube miles
+                            end else begin
+                                score[11:8] <= score[11:8] + 1'b1;
+                            end
+                        end else begin
+                            score[7:4] <= score[7:4] + 1'b1;
+                        end
+
                         if (snake_length < MAX_LENGTH) snake_length <= snake_length + 1;
                     end
                     
                     if (eat_bad) begin
-                        apple_bad_x <= (19 - rand_x); 
-                        apple_bad_y <= (19 - rand_y);
+                        apple_bad_x <= (9 - rand_x); 
+                        apple_bad_y <= (9 - rand_y);
                         
-                        // --- AQUÍ ESTÁ LA NUEVA CONDICIÓN MORTAL ---
-                        if (snake_length > 0) begin
-                            snake_length <= snake_length - 1; // Pierde un segmento
-                        end else begin
-                            game_over <= 1; // ¡Muerte por veneno siendo solo cabeza!
+                        // LÓGICA BCD: Restar 5 pidiendo prestado hasta los miles
+                        if (score != 16'h0000) begin
+                            if (score[3:0] == 4'd5) begin
+                                score[3:0] <= 4'd0; 
+                            end 
+                            else begin
+                                score[3:0] <= 4'd5;
+                                if (score[7:4] == 4'd0) begin
+                                    score[7:4] <= 4'd9;
+                                    if (score[11:8] == 4'd0) begin
+                                        score[11:8] <= 4'd9;
+                                        if (score[15:12] > 4'd0) score[15:12] <= score[15:12] - 1'b1; // Pide a miles
+                                    end else begin
+                                        score[11:8] <= score[11:8] - 1'b1; // Pide a centenas
+                                    end
+                                end else begin
+                                    score[7:4] <= score[7:4] - 1'b1; // Pide a decenas
+                                end
+                            end
                         end
-                        // -------------------------------------------
+                        
+                        if (snake_length > 0) begin
+                            snake_length <= snake_length - 1; 
+                        end else begin
+                            game_over <= 1; 
+                        end
                     end
 
                     case (dir_state)
-                        UP:    head_y <= (head_y == 0) ? 19 : head_y - 1;
-                        DOWN:  head_y <= (head_y == 19) ? 0 : head_y + 1;
-                        LEFT:  head_x <= (head_x == 0) ? 19 : head_x - 1;
-                        RIGHT: head_x <= (head_x == 19) ? 0 : head_x + 1;
+                        UP:    head_y <= (head_y == 0) ? 9 : head_y - 1;
+                        DOWN:  head_y <= (head_y == 9) ? 0 : head_y + 1;
+                        LEFT:  head_x <= (head_x == 0) ? 9 : head_x - 1;
+                        RIGHT: head_x <= (head_x == 9) ? 0 : head_x + 1;
                     endcase
                 end
             end
